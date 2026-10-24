@@ -1,10 +1,11 @@
-from rest_framework import generics, status
+﻿from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
 from modules.elm.api.permissions import ScopedCollection
 from modules.elm.api.serializers import LeaveRequestSerializer, LeaveDecisionSerializer
-from modules.elm.services import submit_leave_request, withdraw_leave_request, get_balance
+from modules.elm.services.applications import submit_leave_request, withdraw_leave_request
+from modules.elm.services.entitlements import get_balance
 
 class LeaveRequestListView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, ScopedCollection("elm.leave.apply")]
