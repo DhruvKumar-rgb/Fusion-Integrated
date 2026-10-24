@@ -1,118 +1,141 @@
+/** My leave: balances, my requests with withdraw, and an apply form. */
 import { useState } from "react";
-import { Button, Card, Container, Group, Stack, Text } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { FaHistory, FaUserCheck } from "react-icons/fa";
-import { useBalance, useLeaveRequests, useApplyLeaveRequest, useWithdrawLeaveRequest } from "./api/hooks";
-import { ErrorState } from "../../../ui/components/ErrorState";
-import { PageHeader } from "../../../ui/components/PageHeader";
-import { StatusBadge } from "../../../ui/components/StatusBadge";
+import type { FormEvent } from "react";
+import {
+  Alert, Button, Checkbox, Loader, Select, Stack, Table, Text, TextInput, Title,
+} from "@mantine/core";
 
-export default function MyLeavePage() {
-  const { data: balance, isPending: balancePending, error: balanceError } = useBalance();
-  const { data: leaveRequests, isPending: leaveRequestsPending, error: leaveRequestsError } = useLeaveRequests();
-  const applyMutation = useApplyLeaveRequest();
-  const withdrawMutation = useWithdrawLeaveRequest();
-  const [category, setCategory] = useState("");
-  const [amount, setAmount] = useState(0);
+import {
+  useApplyLeaveRequest, useBalance, useLeaveRequests, useWithdrawLeaveRequest,
+} from "../api/hooks";
+import { LEAVE_CATEGORIES } from "../api/types";
+import type { LeaveCategory } from "../api/types";
 
-  if (balanceError) return <Container size="xl"><ErrorState error={balanceError} /></Container>;
-  if (leaveRequestsError) return <Container size="xl"><ErrorState error={leaveRequestsError} /></Container>;
+const WITHDRAWABLE = ["Awaiting Substitute Response", "Awaiting Unit Head Review"];
 
-  function apply() {
-    applyMutation.mutate(
-      { category, amount },
+function errorMessage(error: unknown): string {
+  const data = (error as { response?: { data?: { message?: string; detail?: string } } })
+    ?.response?.data;
+  if (data?.message) return data.message;
+  if (data?.detail) return data.detail;
+  return error instanceof Error ? error.message : "Something went wrong. Please try again.";
+}
+
+export function MyLeavePage() {
+  const year = new Date().getFullYear();
+  const balance = useBalance(year);
+  const requests = useLeaveRequests();
+  const apply = useApplyLeaveRequest();
+  const withdraw = useWithdrawLeaveRequest();
+
+  const [category, setCategory] = useState<LeaveCategory>("CL");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [reason, setReason] = useState("");
+  const [halfDay, setHalfDay] = useState(false);
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    apply.mutate(
+      { category, start_date: startDate, end_date: endDate, reason, half_day: halfDay },
       {
         onSuccess: () => {
-          notifications.show({
-            color: "green",
-            title: "Applied",
-            message: `Your leave request for ${amount} in ${category} has been applied.`,
-          });
-          setCategory("");
-          setAmount(0);
+          setStartDate("");
+          setEndDate("");
+          setReason("");
+          setHalfDay(false);
         },
-        onError: (e) => notifications.show({
-          color: "red",
-          title: "Could not apply",
-          message: errorMessage(e),
-        }),
       },
     );
-  }
-
-  function withdraw(id: number) {
-    withdrawMutation.mutate(
-      id,
-      {
-        onSuccess: () => notifications.show({
-          color: "gray",
-          title: "Withdrawn",
-          message: "Your leave request has been withdrawn.",
-        }),
-        onError: (e) => notifications.show({
-          color: "red",
-          title: "Could not withdraw",
-          message: errorMessage(e),
-        }),
-      },
-    );
-  }
+  };
 
   return (
-    <Container size="xl">
-      <PageHeader
-        title="My Leave Requests"
-        subtitle="Balance and list of your leave requests"
-      />
-      <Card padding="lg">
-        <Stack>
-          <Text fw={600}>Balance</Text>
-          <Stack spacing="xs">
-            {balance?.map((b) => (
-              <Text key={b.category}>
-                {b.category}: {b.amount}
-              </Text>
-            ))}
-          </Stack>
-        </Stack>
-      </Card>
-      <Card padding="lg">
-        <Stack>
-          <Text fw={600}>Apply for Leave</Text>
-          <Group>
-            <input
-              type="text"
+    <Stack gap="lg">
+      <Title order={2}>My leave</Title>
+
+      <Stack gap="xs">
+        <Title order={4}>Balance for {year}</Title>
+        {balance.isPending && <Loader size="sm" />}
+        {balance.isError && <Alert color="red">{errorMessage(balance.error)}</Alert>}
+        {balance.data && (
+          <Table>
+            <Table.Thead>
+              <Table.Tr><Table.Th>Category</Table.Th><Table.Th>Days left</Table.Th></Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {balance.data.map((row) => (
+                <Table.Tr key={row.category}>
+                  <Table.Td>{row.category}</Table.Td>
+                  <Table.Td>{row.amount}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Stack>
+
+      <Stack gap="xs">
+        <Title order={4}>Apply for leave</Title>
+        <form onSubmit={onSubmit}>
+          <Stack gap="sm">
+            <Select
+              label="Category"
+              data={[...LEAVE_CATEGORIES]}
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Category"
+              onChange={(value) => value && setCategory(value as LeaveCategory)}
+              allowDeselect={false}
             />
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              placeholder="Amount"
-            />
-            <Button onClick={apply}>Apply</Button>
-          </Group>
-        </Stack>
-      </Card>
-      <Card padding="lg">
-        <Stack>
-          <Text fw={600}>Leave Requests</Text>
-          <Stack spacing="xs">
-            {leaveRequests?.map((lr) => (
-              <Stack key={lr.id}>
-                <Text>{lr.category}: {lr.amount}</Text>
-                <Text>{lr.applied_at}</Text>
-                <StatusBadge status={lr.status} />
-                {lr.status === "pending" && (
-                  <Button onClick={() => withdraw(lr.id)}>Withdraw</Button>
-                )}
-              </Stack>
-            ))}
+            <TextInput label="From" type="date" required value={startDate}
+              onChange={(e) => setStartDate(e.currentTarget.value)} />
+            <TextInput label="To" type="date" required value={endDate}
+              onChange={(e) => setEndDate(e.currentTarget.value)} />
+            <TextInput label="Reason" required value={reason}
+              onChange={(e) => setReason(e.currentTarget.value)} />
+            <Checkbox label="Half day" checked={halfDay}
+              onChange={(e) => setHalfDay(e.currentTarget.checked)} />
+            {apply.isError && <Alert color="red">{errorMessage(apply.error)}</Alert>}
+            <Button type="submit" loading={apply.isPending}>Apply</Button>
           </Stack>
-        </Stack>
-      </Card>
-    </Container>
+        </form>
+      </Stack>
+
+      <Stack gap="xs">
+        <Title order={4}>My requests</Title>
+        {requests.isPending && <Loader size="sm" />}
+        {requests.isError && <Alert color="red">{errorMessage(requests.error)}</Alert>}
+        {withdraw.isError && <Alert color="red">{errorMessage(withdraw.error)}</Alert>}
+        {requests.data && requests.data.length === 0 && (
+          <Text c="dimmed">You have not applied for any leave yet.</Text>
+        )}
+        {requests.data && requests.data.length > 0 && (
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Category</Table.Th><Table.Th>From</Table.Th><Table.Th>To</Table.Th>
+                <Table.Th>Status</Table.Th><Table.Th />
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {requests.data.map((r) => (
+                <Table.Tr key={r.id}>
+                  <Table.Td>{r.category}</Table.Td>
+                  <Table.Td>{r.start_date}</Table.Td>
+                  <Table.Td>{r.end_date}</Table.Td>
+                  <Table.Td>{r.status}</Table.Td>
+                  <Table.Td>
+                    {WITHDRAWABLE.includes(r.status) && (
+                      <Button size="xs" variant="light" loading={withdraw.isPending}
+                        onClick={() => withdraw.mutate(r.id)}>Withdraw</Button>
+                    )}
+                  </Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Stack>
+    </Stack>
   );
 }
+
+export default MyLeavePage;

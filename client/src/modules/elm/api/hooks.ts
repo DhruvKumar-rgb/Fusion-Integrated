@@ -1,26 +1,44 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+/** Data access for the elm module. Every mutation invalidates the keys it can affect. */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { http } from "../../../lib/http";
-import { LeaveRequest, Balance } from "./types";
+import type { ApplyInput, Balance, LeaveRequest } from "./types";
 
-const fetchBalance = async (): Promise<Balance[]> => {
-  const response = await http.get<Balance[]>("/leave-requests/balance/");
-  return response.data;
+const KEY = "elm";
+
+export const keys = {
+  all: () => [KEY] as const,
+  requests: () => [KEY, "leave-requests"] as const,
+  balance: (year: number) => [KEY, "balance", year] as const,
 };
 
-const fetchLeaveRequests = async (): Promise<LeaveRequest[]> => {
-  const response = await http.get<LeaveRequest[]>("/leave-requests/");
-  return response.data;
+export const useBalance = (year: number) =>
+  useQuery({
+    queryKey: keys.balance(year),
+    queryFn: async () =>
+      (await http.get<Balance[]>("/elm/balance/", { params: { year } })).data,
+  });
+
+export const useLeaveRequests = () =>
+  useQuery({
+    queryKey: keys.requests(),
+    queryFn: async () => (await http.get<LeaveRequest[]>("/elm/leave-requests/")).data,
+  });
+
+export const useApplyLeaveRequest = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ApplyInput) =>
+      (await http.post<LeaveRequest>("/elm/leave-requests/", input)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all() }),
+  });
 };
 
-const applyLeaveRequest = async (data: { category: string; amount: number }) => {
-  await http.post("/leave-requests/", data);
+export const useWithdrawLeaveRequest = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await http.post<LeaveRequest>(`/elm/leave-requests/${id}/withdraw/`)).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.all() }),
+  });
 };
-
-const withdrawLeaveRequest = async (id: number) => {
-  await http.post(`/leave-requests/${id}/withdraw`);
-};
-
-export const useBalance = () => useQuery<Balance[], Error>(["balance"], fetchBalance);
-export const useLeaveRequests = () => useQuery<LeaveRequest[], Error>(["leave-requests"], fetchLeaveRequests);
-export const useApplyLeaveRequest = () => useMutation<void, Error, { category: string; amount: number }>(applyLeaveRequest);
-export const useWithdrawLeaveRequest = () => useMutation<void, Error, number>(withdrawLeaveRequest);

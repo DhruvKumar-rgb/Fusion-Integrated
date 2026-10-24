@@ -92,28 +92,12 @@
         "icon": "Calendar",
         "items": [
           {
-            "code": "elm.apply",
+            "code": "elm.my_leave",
             "icon": "CalendarPlus",
-            "label": "Apply for Leave",
-            "required_permission": "elm.leave.apply",
-            "sort_order": 5,
-            "to": "/elm/apply"
-          },
-          {
-            "code": "elm.view",
-            "icon": "CalendarCheck",
-            "label": "View Own Leave",
+            "label": "My Leave",
             "required_permission": "elm.leave.view_self",
-            "sort_order": 10,
-            "to": "/elm/view"
-          },
-          {
-            "code": "elm.withdraw",
-            "icon": "CalendarX",
-            "label": "Withdraw Leave",
-            "required_permission": "elm.leave.withdraw",
-            "sort_order": 15,
-            "to": "/elm/withdraw"
+            "sort_order": 5,
+            "to": "/elm/my-leave"
           }
         ],
         "label": "Employee Leave Management",

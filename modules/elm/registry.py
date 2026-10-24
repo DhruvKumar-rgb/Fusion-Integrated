@@ -11,15 +11,9 @@ MODULE = {
 }
 
 NAV_ITEMS = [
-    {"code": "elm.apply", "label": "Apply for Leave",
-     "icon": "CalendarPlus", "to": "/elm/apply",
-     "required_permission": "elm.leave.apply", "sort_order": 5},
-    {"code": "elm.view", "label": "View Own Leave",
-     "icon": "CalendarCheck", "to": "/elm/view",
-     "required_permission": "elm.leave.view_self", "sort_order": 10},
-    {"code": "elm.withdraw", "label": "Withdraw Leave",
-     "icon": "CalendarX", "to": "/elm/withdraw",
-     "required_permission": "elm.leave.withdraw", "sort_order": 15},
+    {"code": "elm.my_leave", "label": "My Leave",
+     "icon": "CalendarPlus", "to": "/elm/my-leave",
+     "required_permission": "elm.leave.view_self", "sort_order": 5},
 ]
 
 #: Every permission this module recognises; ROLE_GRANTS below says who holds each.
@@ -73,3 +67,5 @@ ROLE_GRANTS = {
     "Director": _DIRECTOR,
     "Leave Administrator": _LEAVE_ADMINISTRATOR,
 }
+
+
