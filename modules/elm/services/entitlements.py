@@ -6,30 +6,24 @@ from modules.elm.models import LeaveBalanceEntry
 
 def credit_annual_entitlements(user_id, year, is_faculty):
     with transaction.atomic():
-        LeaveBalanceEntry.objects.filter(user_id=user_id, year=year).delete()
+        categories = {
+            "CL": 8,
+            "RH": 2,
+            "SCL": 15,
+            "COL": 20,
+        }
+        if not is_faculty:
+            categories["EL"] = 30
         if is_faculty:
-            LeaveBalanceEntry.objects.create(
-                user_id=user_id, year=year, category="CL", days_delta=8, reason="Annual Entitlement"
-            )
-            LeaveBalanceEntry.objects.create(
-                user_id=user_id, year=year, category="RH", days_delta=2, reason="Annual Entitlement"
-            )
-            LeaveBalanceEntry.objects.create(
-                user_id=user_id, year=year, category="SCL", days_delta=15, reason="Annual Entitlement"
-            )
-            LeaveBalanceEntry.objects.create(
-                user_id=user_id, year=year, category="COL", days_delta=20, reason="Annual Entitlement"
-            )
-            LeaveBalanceEntry.objects.create(
-                user_id=user_id, year=year, category="EL", days_delta=30, reason="Annual Entitlement"
-            )
-            LeaveBalanceEntry.objects.create(
-                user_id=user_id, year=year, category="VL", days_delta=60, reason="Annual Entitlement"
-            )
-        else:
-            LeaveBalanceEntry.objects.create(
-                user_id=user_id, year=year, category="EL", days_delta=30, reason="Annual Entitlement"
-            )
+            categories["VL"] = 60
+
+        for category, days in categories.items():
+            if days == 0:
+                continue
+            if not LeaveBalanceEntry.objects.filter(user_id=user_id, year=year, category=category, reason="Annual Entitlement").exists():
+                LeaveBalanceEntry.objects.create(
+                    user_id=user_id, year=year, category=category, days_delta=days, reason="Annual Entitlement"
+                )
 
 
 def get_balance(user_id, category, year):
